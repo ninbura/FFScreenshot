@@ -1,0 +1,8 @@
+{
+  "OutputDirectory": "~/Pictures",
+  "OutputFilename": "yyyy-MM-dd HH-mm-ss",
+  "CopyToClipboard": true,
+  "VideoDevice": "Live Gamer 4K 2.1-Video",
+  "Resolution": "3840x2160",
+  "Crop": "2560:1440:0:440"
+}

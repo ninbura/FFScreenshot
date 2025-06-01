@@ -1,3 +1,10 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using FFScreenshot.Configuration;
+using Microsoft.Extensions.Hosting;
 
-Console.WriteLine("Hello, World!");
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.RegisterServices(args);
+
+var host = builder.Build();
+
+await host.Services.InitializeServices();
