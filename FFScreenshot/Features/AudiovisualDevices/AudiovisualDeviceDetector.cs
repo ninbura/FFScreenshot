@@ -11,8 +11,6 @@ public static partial class AudiovisualDeviceDetector
     [GeneratedRegex("""
                     "([^"]*@device_[^"]*)"
                     """)]
-    private static partial Regex DshowDeviceRegex();
-    [GeneratedRegex(@"\[(\d+)\]\s+(.+)")]
     private static partial Regex AvfoundationDeviceRegex();
     
     public static async Task DetectAndSave()
@@ -84,28 +82,71 @@ public static partial class AudiovisualDeviceDetector
     private static List<AudiovisualDevice> ParseDirectShow(string output)
     {
         var devices = new List<AudiovisualDevice>();
-        var currentDeviceType = DeviceType.Video;
+        var lines = output.Split('\n');
 
-        foreach (var line in output.Split('\n'))
+        for (int i = 0; i < lines.Length; i++)
         {
-            if (line.Contains("DirectShow video devices"))
-                currentDeviceType = DeviceType.Video;
-            else if (line.Contains("DirectShow audio devices"))
-                currentDeviceType = DeviceType.Audio;
-            else if (line.Contains('"'))
+            var line = lines[i].Trim();
+        
+            // Look for device lines that start with [dshow @ and contain quotes but NOT "Alternative name"
+            if (!line.StartsWith("[dshow @") || !line.Contains('"') || line.Contains("Alternative name")) 
+                continue;
+
+            // Extract device name and type
+            var deviceInfo = ExtractDeviceInfo(line);
+            if (deviceInfo == null) 
+                continue;
+
+            // Look for an alternative name on the next line
+            string? alternativeName = null;
+            if (i + 1 < lines.Length)
             {
-                var (name, alt) = ExtractDirectShowNames(line);
-                if (!string.IsNullOrEmpty(name))
-                    devices.Add(new AudiovisualDevice 
-                    { 
-                        DeviceType = currentDeviceType,
-                        Name = name, 
-                        AlternativeName = alt 
-                    });
+                var nextLine = lines[i + 1].Trim();
+                if (nextLine.StartsWith("[dshow @") && nextLine.Contains("Alternative name"))
+                {
+                    alternativeName = ExtractAlternativeName(nextLine);
+                }
             }
+
+            devices.Add(new AudiovisualDevice
+            {
+                DeviceType = deviceInfo.Value.deviceType,
+                Name = deviceInfo.Value.name,
+                AlternativeName = alternativeName
+            });
         }
 
         return devices;
+    }
+
+    private static (DeviceType deviceType, string name)? ExtractDeviceInfo(string line)
+    {
+        // Extract the quoted device name
+        var firstQuote = line.IndexOf('"');
+        var lastQuote = line.LastIndexOf('"');
+        
+        if (firstQuote == -1 || lastQuote == -1 || firstQuote == lastQuote)
+            return null;
+        
+        var deviceName = line.Substring(firstQuote + 1, lastQuote - firstQuote - 1);
+        
+        // Determine a device type from (video) or (audio) at the end
+        var deviceType = line.Contains("(video)") ? DeviceType.Video : DeviceType.Audio;
+        
+        return (deviceType, deviceName);
+    }
+
+    private static string? ExtractAlternativeName(string line)
+    {
+        // Extract alternative name from lines like:
+        // [dshow @ ...] Alternative name "@device_pnp_\\?\root#media#0001#{...}\vidsource0"
+        var altStart = line.IndexOf("Alternative name \"", StringComparison.Ordinal);
+        if (altStart == -1) return null;
+        
+        altStart += "Alternative name \"".Length;
+        var altEnd = line.IndexOf('"', altStart);
+        
+        return altEnd > altStart ? line.Substring(altStart, altEnd - altStart) : null;
     }
 
     private static List<AudiovisualDevice> ParseAvFoundation(string output)
@@ -238,19 +279,5 @@ public static partial class AudiovisualDeviceDetector
             AlternativeName = $"{backend}:{deviceId}"
         };
 
-    }
-
-    private static (string name, string? alt) ExtractDirectShowNames(string line)
-    {
-        var name = ExtractQuoted(line);
-        var alt = line.Contains("@device_") ? DshowDeviceRegex().Match(line).Groups[1].Value : null;
-        return (name, string.IsNullOrEmpty(alt) ? null : alt);
-    }
-
-    private static string ExtractQuoted(string line)
-    {
-        var start = line.IndexOf('"');
-        var end = start >= 0 ? line.IndexOf('"', start + 1) : -1;
-        return end > start ? line.Substring(start + 1, end - start - 1) : string.Empty;
     }
 }
