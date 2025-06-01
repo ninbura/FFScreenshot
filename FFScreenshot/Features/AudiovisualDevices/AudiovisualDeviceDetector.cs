@@ -82,7 +82,7 @@ public static partial class AudiovisualDeviceDetector
         var devices = new List<AudiovisualDevice>();
         var lines = output.Split('\n');
 
-        for (int i = 0; i < lines.Length; i++)
+        for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i].Trim();
         
