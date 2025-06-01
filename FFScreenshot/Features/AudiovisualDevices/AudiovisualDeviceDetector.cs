@@ -8,9 +8,7 @@ namespace FFScreenshot.Features.AudiovisualDevices;
 
 public static partial class AudiovisualDeviceDetector
 {
-    [GeneratedRegex("""
-                    "([^"]*@device_[^"]*)"
-                    """)]
+    [GeneratedRegex(@"\[(\d+)\]\s+(.+)")]
     private static partial Regex AvfoundationDeviceRegex();
     
     public static async Task DetectAndSave()
